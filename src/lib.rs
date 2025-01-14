@@ -102,7 +102,7 @@
 //! prefix precision scale    separator suffix
 //! ```
 //! > Each component is optional, including the number format. All formats are applied to the
-//! _default_ [`Formatter`] so an empty format results in the default _formatter_.
+//! > _default_ [`Formatter`] so an empty format results in the default _formatter_.
 //!
 //! ## Prefix and Suffix
 //! The prefix and suffix are bound to the supported lengths, and can have any character in them.
@@ -258,7 +258,6 @@ pub use parse::ParseError;
 /// Result type for [`Formatter`] methods.
 pub type Result = std::result::Result<Formatter, Error>;
 
-const SN_PREC: Precision = Significance(7);
 const PREFIX_LIM: usize = 12;
 const UNITS_LIM: usize = 12;
 const SUFFIX_LIM: usize = 12;
@@ -484,14 +483,8 @@ impl Formatter {
         }
     }
 
-    /// Format the number!
-    #[deprecated = "consider using Formatter::fmt2 instead"]
-    pub fn fmt(&mut self, num: f64) -> &str {
-        self.fmt2(num)
-    }
-
     /// Format any number implementing [`Numeric`].
-    pub fn fmt2<N: Numeric>(&mut self, num: N) -> &str {
+    pub fn fmt<N: Numeric>(&mut self, num: N) -> &str {
         if num.is_nan() {
             return "NaN";
         }
@@ -634,21 +627,6 @@ impl Hash for Formatter {
     }
 }
 
-/// Returns `(reduced, exponent)`.
-fn reduce_to_sn(n: f64) -> (f64, i32) {
-    if n == 0.0 || n == -0.0 {
-        (0.0, 0)
-    } else {
-        let abs = n.abs();
-        let mut e = abs.log10().trunc() as i32;
-        if abs < 1.0 {
-            e -= 1;
-        }
-        let n = n * 10_f64.powi(-e);
-        (n, e)
-    }
-}
-
 // ########### ERROR #####################################################################
 /// Errors when configuring a [`Formatter`].
 #[derive(Debug, PartialEq)]
@@ -734,7 +712,7 @@ impl Scales {
     /// Create a scale which is dummy and does not scale.
     pub fn none() -> Self {
         Self {
-            base: std::u16::MAX,
+            base: u16::MAX,
             units: Vec::new(),
         }
     }
@@ -997,7 +975,7 @@ mod tests {
             .suffix("a suffix !")
             .unwrap();
         assert_eq!(
-            f.fmt(-123456789.0123456789),
+            f.fmt(-123_456_789.012_345_67),
             "__ chars _-123,456,789.01234567_ten charsa suffix !"
         );
     }

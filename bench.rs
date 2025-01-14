@@ -2,7 +2,8 @@ use criterion::*;
 use numfmt::*;
 
 fn black_box<T>(x: T) {
-    criterion::black_box((x, ()).1)
+    (x, ()).1;
+    criterion::black_box(())
 }
 
 // always does; default, cached, std
