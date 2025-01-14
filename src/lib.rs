@@ -258,8 +258,6 @@ pub use parse::ParseError;
 /// Result type for [`Formatter`] methods.
 pub type Result = std::result::Result<Formatter, Error>;
 
-const SN_BIG_CUTOFF: f64 = 1_000_000_000_000f64;
-const SN_SML_CUTOFF: f64 = 0.001;
 const SN_PREC: Precision = Significance(7);
 const PREFIX_LIM: usize = 12;
 const UNITS_LIM: usize = 12;
@@ -495,57 +493,35 @@ impl Formatter {
     /// Format any number implementing [`Numeric`].
     pub fn fmt2<N: Numeric>(&mut self, num: N) -> &str {
         if num.is_nan() {
-            "NaN"
-        } else if num.is_infinite() && num.is_negative() {
-            "-∞"
-        } else if num.is_infinite() {
-            "∞"
-        } else if num.is_zero() {
-            "0"
-        } else {
-            let num = (self.convert)(num.to_f64());
-
-            // scale num to supplied scales
-            let (scaled, unit) = self.scales.scale(num);
-
-            // check if the scaled version hits sn cutoffs
-            // use original number if it does
-            let abs = scaled.abs();
-            // This adjusts the sn cutoff if decimals is low
-            let sn_sml_cutoff = match self.precision {
-                Decimals(d) | Significance(d) if d <= 3 => 10f64.powi(d as i32).recip(),
-                _ => SN_SML_CUTOFF,
-            };
-            if abs >= SN_BIG_CUTOFF || abs < sn_sml_cutoff {
-                // fmt with scientific notation
-                let (num, exponent) = reduce_to_sn(num);
-                let precision = match self.precision {
-                    Unspecified => SN_PREC,
-                    x => x,
-                };
-                let cursor = self.start + self.write_num(num, precision);
-                self.strbuf[cursor] = b'e'; // exponent
-                let cursor = 1 + cursor;
-                let written = {
-                    let mut buf = itoa::Buffer::new();
-                    let s = buf.format(exponent);
-                    let end = cursor + s.len();
-                    self.strbuf[cursor..end].copy_from_slice(s.as_bytes());
-                    s.len()
-                };
-                let cursor = cursor + written;
-                self.apply_suffix_and_output(cursor)
-            } else {
-                // write out the scaled number
-                let mut cursor = self.start + self.write_num(scaled, self.precision);
-                if !unit.is_empty() {
-                    let s = cursor;
-                    cursor += unit.len();
-                    self.strbuf[s..cursor].copy_from_slice(unit.as_bytes());
-                }
-                self.apply_suffix_and_output(cursor)
-            }
+            return "NaN";
         }
+
+        if num.is_infinite() && num.is_negative() {
+            return "-∞";
+        }
+
+        if num.is_infinite() {
+            return "∞";
+        }
+
+        if num.is_zero() {
+            return "0";
+        }
+
+        let num = (self.convert)(num.to_f64());
+
+        // scale num to supplied scales
+        let (scaled, unit) = self.scales.scale(num);
+
+        // write out the scaled number
+        let mut cursor = self.start + self.write_num(scaled, self.precision);
+        if !unit.is_empty() {
+            let s = cursor;
+            cursor += unit.len();
+            self.strbuf[s..cursor].copy_from_slice(unit.as_bytes());
+        }
+
+        self.apply_suffix_and_output(cursor)
     }
 
     /// Writes `num` into the string buffer with the specified `precision`.
